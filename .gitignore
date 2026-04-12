@@ -1,0 +1,27 @@
+# Secrets
+.env
+**/.env
+!**/.env.example
+
+# GraphHopper runtime data (huge)
+graphhopper/graph-cache/
+graphhopper/elevation-cache/
+graphhopper/dach-latest.osm.pbf
+graphhopper/graphhopper-web-*.jar
+graphhopper/config.yml.bak*
+
+# Photon runtime data
+photon/data/
+
+# Tileserver runtime data
+tiles/mbtiles/
+tiles/*.mbtiles
+
+# Backup configs
+*.yml.bak
+*.yml.bak-*
+
+# OS / editor
+.DS_Store
+*.swp
+*~

@@ -1,0 +1,22 @@
+services:
+  feedback:
+    build: .
+    container_name: peakmoto-feedback
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    restart: unless-stopped
+    networks:
+      - frontend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.peakmoto-feedback.rule=Host(`feedback.peakmoto.app`)"
+      - "traefik.http.routers.peakmoto-feedback.entrypoints=websecure"
+      - "traefik.http.routers.peakmoto-feedback.tls=true"
+      - "traefik.http.routers.peakmoto-feedback.tls.certresolver=cloudflare"
+      - "traefik.http.services.peakmoto-feedback.loadbalancer.server.port=8000"
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  frontend:
+    external: true

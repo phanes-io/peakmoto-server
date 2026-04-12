@@ -1,6 +1,6 @@
 services:
-  # GraphHopper runs natively as systemd service (graphhopper.service)
-  # Traefik routes via file provider: /opt/traefik/config/routing.peakmoto.app.yml
+  # GraphHopper runs natively as systemd service (see graphhopper/README.md)
+  # Traefik routes routing.peakmoto.app via file provider to host:8989
 
   photon:
     build: ./photon
@@ -33,6 +33,24 @@ services:
       - "traefik.http.routers.peakmoto-tiles.tls=true"
       - "traefik.http.routers.peakmoto-tiles.tls.certresolver=cloudflare"
       - "traefik.http.services.peakmoto-tiles.loadbalancer.server.port=8080"
+
+  feedback:
+    build: ./feedback
+    container_name: peakmoto-feedback
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    restart: unless-stopped
+    networks:
+      - frontend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.peakmoto-feedback.rule=Host(`feedback.peakmoto.app`)"
+      - "traefik.http.routers.peakmoto-feedback.entrypoints=websecure"
+      - "traefik.http.routers.peakmoto-feedback.tls=true"
+      - "traefik.http.routers.peakmoto-feedback.tls.certresolver=cloudflare"
+      - "traefik.http.services.peakmoto-feedback.loadbalancer.server.port=8000"
+      - "com.centurylinklabs.watchtower.enable=true"
 
   watchtower:
     image: containrrr/watchtower
