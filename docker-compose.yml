@@ -1,68 +1,49 @@
 services:
-  brouter:
-    image: nrenner/brouter-web:latest
+  # GraphHopper runs natively as systemd service (graphhopper.service)
+  # Traefik routes via file provider: /opt/traefik/config/routing.peakmoto.app.yml
+
+  photon:
+    build: ./photon
+    container_name: peakmoto-photon
     volumes:
-      - ./brouter/segments:/segments
-      - ./brouter/profiles:/profiles
-    ports:
-      - "17777:17777"
+      - ./photon/data:/photon/photon_data
     restart: unless-stopped
+    networks:
+      - frontend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.brouter.rule=Host(`brouter.peakmoto.app`)"
-      - "traefik.http.routers.brouter.tls=true"
-      - "traefik.http.routers.brouter.tls.certresolver=letsencrypt"
-      - "traefik.http.services.brouter.loadbalancer.server.port=17777"
+      - "traefik.http.routers.peakmoto-photon.rule=Host(`photon.peakmoto.app`)"
+      - "traefik.http.routers.peakmoto-photon.entrypoints=websecure"
+      - "traefik.http.routers.peakmoto-photon.tls=true"
+      - "traefik.http.routers.peakmoto-photon.tls.certresolver=cloudflare"
+      - "traefik.http.services.peakmoto-photon.loadbalancer.server.port=2322"
 
   tileserver:
     image: maptiler/tileserver-gl:latest
+    container_name: peakmoto-tiles
     volumes:
       - ./tiles:/data
-      - ./styles:/styles
-    ports:
-      - "8080:8080"
     restart: unless-stopped
+    networks:
+      - frontend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.tiles.rule=Host(`tiles.peakmoto.app`)"
-      - "traefik.http.routers.tiles.tls=true"
-      - "traefik.http.routers.tiles.tls.certresolver=letsencrypt"
-      - "traefik.http.services.tiles.loadbalancer.server.port=8080"
-
-  traefik:
-    image: traefik:v3.0
-    command:
-      - "--api.dashboard=false"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/letsencrypt:/letsencrypt
-    restart: unless-stopped
-
-  uptime-kuma:
-    image: louislam/uptime-kuma:1
-    volumes:
-      - ./uptime-kuma/data:/app/data
-    restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.uptime.rule=Host(`status.peakmoto.app`)"
-      - "traefik.http.routers.uptime.tls=true"
-      - "traefik.http.routers.uptime.tls.certresolver=letsencrypt"
-      - "traefik.http.services.uptime.loadbalancer.server.port=3001"
+      - "traefik.http.routers.peakmoto-tiles.rule=Host(`tiles.peakmoto.app`)"
+      - "traefik.http.routers.peakmoto-tiles.entrypoints=websecure"
+      - "traefik.http.routers.peakmoto-tiles.tls=true"
+      - "traefik.http.routers.peakmoto-tiles.tls.certresolver=cloudflare"
+      - "traefik.http.services.peakmoto-tiles.loadbalancer.server.port=8080"
 
   watchtower:
     image: containrrr/watchtower
-    command: --interval 86400
+    container_name: peakmoto-watchtower
+    command: --interval 86400 --label-enable
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  frontend:
+    external: true
