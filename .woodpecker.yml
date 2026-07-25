@@ -1,0 +1,53 @@
+when:
+  - event: [push, manual]
+
+# Baut den feedback-Dienst nach Harbor. Anders als die Next.js-Repos gibt es
+# hier keine package.json-Version, deshalb wird ueber den Commit getaggt.
+
+steps:
+  - name: tags
+    image: registry.local.phanes.net/dockerhub/library/alpine:3.20
+    commands:
+      - SHORT=$(echo "$CI_COMMIT_SHA" | cut -c1-8)
+      - printf '%s\nlatest\n' "$SHORT" > .tags
+      - echo "Tags fuer diesen Build:" && cat .tags
+
+  - name: build-push
+    image: woodpeckerci/plugin-docker-buildx:6.1.1
+    settings:
+      registry: registry.local.phanes.net
+      repo: registry.local.phanes.net/phanes-io/peakmoto-feedback
+      dockerfile: feedback/Dockerfile
+      context: feedback
+      platforms: linux/amd64
+      tags_file: .tags
+      username:
+        from_secret: harbor_user
+      password:
+        from_secret: harbor_token
+    depends_on: [tags]
+
+  - name: deploy-tag
+    image: registry.local.phanes.net/dockerhub/alpine/git:latest
+    environment:
+      FORGEJO_USER:
+        from_secret: forgejo_user
+      FORGEJO_TOKEN:
+        from_secret: forgejo_token
+    commands:
+      - VERSION=$(head -1 .tags)
+      - git clone -q "https://$FORGEJO_USER:$FORGEJO_TOKEN@git.local.phanes.net/phanes-io/infra-stacks.git" /tmp/infra
+      - cd /tmp/infra
+      # Muster ohne "image: " - Doppelpunkt mit Leerzeichen wuerde die YAML-Zeile brechen
+      - sed -i "s#phanes-io/peakmoto-feedback:[A-Za-z0-9._-]*#phanes-io/peakmoto-feedback:$VERSION#" peak01/peakmoto-feedback/docker-compose.yml
+      - git config user.email "ci-bot@phanes.net"
+      - git config user.name "CI Bot"
+      - |
+        if git diff --quiet; then
+          echo "Tag unveraendert ($VERSION) - kein Commit noetig"
+        else
+          git commit -am "peakmoto-feedback: Image-Tag auf $VERSION (Pipeline $CI_PIPELINE_NUMBER)"
+          git push origin main
+          echo "Tag $VERSION nach infra-stacks gepusht"
+        fi
+    depends_on: [build-push]
